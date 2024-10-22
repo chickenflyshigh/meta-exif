@@ -1,0 +1,41 @@
+#!/bin/bash
+# example usage: edit_exif_move_media -O /home/James/Penguin/@media/Social\ Media/exif_media/ -f /home/James/Penguin/@media/Social\ Media/metadata.txt
+IFS=$'\n'
+# set -eo pipefail
+usage() { echo "Usage: $0 [-a <audio output directory>] [-v <audio output directory>] [-p <photo output directory>] [-f <input file>]" 1>&2; exit 1; }
+
+while getopts ":a:v:p:f:" o; do
+    case "${o}" in
+        a) a="${OPTARG}" ;; # audio output folder
+        v) v="${OPTARG}" ;; # video output folder
+        p) p="${OPTARG}" ;; # photo output folder
+        f) f="${OPTARG}" ;; # metadata.txt file location
+        *) usage;;
+    esac
+done    
+# while IFS=';' read -r ts media msg_dir filepath media_ts people; do
+#  exifunix -d "$people" -n "$filepath" -t "$media_ts" -O "$O"
+#  echo "exifunix -d $people -n $filepath -t $media_ts -O $O"
+# done < "$f"
+
+process_line() {
+    record="$1"
+    audio_output="$2"
+    video_output="$3"
+    photo_output="$4"
+    IFS=';' read ts media msg_dir filepath media_ts people <<< "$record"
+    if [[ $media == "audio" ]]; then
+        echo "Executing: exifunix -d \"$people\" -n \"$filepath\" -t \"$media_ts\" -O \"$audio_output\""
+        exifunix -d "$people" -n "$filepath" -t "$media_ts" -O "$audio_output"
+    elif [[ $media == "video" ]]; then
+        echo "Executing: exifunix -d \"$people\" -n \"$filepath\" -t \"$media_ts\" -O \"$video_output\""
+        exifunix -d "$people" -n "$filepath" -t "$media_ts" -O "$video_output"
+    elif [[ $media == "photo" ]]; then
+        echo "Executing: exifunix -d \"$people\" -n \"$filepath\" -t \"$media_ts\" -O \"$photo_output\""
+        exifunix -d "$people" -n "$filepath" -t "$media_ts" -O "$photo_output"
+    fi
+}
+
+export -f process_line
+
+cat "$f" | parallel -P 12 -n 1 -d '\n' "process_line {} \"$a\" \"$v\" \"$p\" 2>/dev/null"

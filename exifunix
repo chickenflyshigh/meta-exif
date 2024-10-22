@@ -1,0 +1,35 @@
+#!/bin/bash
+
+
+usage() { echo "Usage: $0 [-n <filename>] [-t <unix timestamp in seconds>] [-d <description>] [-O <output directory>]" 1>&2; exit 1; }
+
+while getopts ":n:t:O:d:" o; do
+    case "${o}" in
+        n) 
+            n="${OPTARG}"
+           [ -f "${n}" ]    || ( echo "Bad filename $n" && usage )
+           ;;
+        t) 
+            t=${OPTARG}
+           [[ ${t} =~ ^[0-9]+$ ]] || ( echo "Bad time $t" && usage )
+           ;;
+        O) 
+            O="${OPTARG}" 
+        ;;
+        d) d="${OPTARG}" 
+        ;;
+        *) usage
+        ;;
+    esac
+done        
+
+if [ -z "$1" ]; then
+    usage
+    exit 1
+fi
+formatted_date=$(date -d @${t} '+%Y:%m:%d %H:%M:%S')
+
+exiftool -Artist="Messenger" -Description="$d" -CreateDate="$formatted_date" -DateTimeOriginal="$formatted_date" "$n" -o "$O"
+
+
+

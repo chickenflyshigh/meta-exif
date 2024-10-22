@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+# for producing a CSV file that clearly displays the locations of the media files from facebook messenger and respective timestamps of creation.
+# E.g. Usage smmdo "/home/James/Penguin/@media/Social Media/facebook-2024-10-11" facebook archived_threads "/tmp/test.txt"
+root_dir=$1 # right before the point of your_facebook_activity/...
+msg_dir=$3 # inbox, message_requests, e2ee_cutover
+dest_file=$4 # destination file in the csv format with ';' as delimiter which goes: date_data_added;format;msg_dir;timestamp;absolute_datapath;participants
+platform=$2 #facebook or instagram
+file_dir="$root_dir/your_${platform}_activity/messages/$msg_dir"
+
+mapfile -t jsonfiles < <(fd \.json "$file_dir")
+
+for jsonfile in "${jsonfiles[@]}"; do
+    if [ -f "$jsonfile" ]; then 
+        timestamp=$(date '+%Y:%m:%d %H:%M:%S')
+        people=$(jq '.participants[].name' "$jsonfile" | tr -d \" | paste -sd'/' )
+        jq -r --arg timestamp "$timestamp" --arg msg_dir "$msg_dir" --arg root "$root_dir" --arg people "$people" '.messages[] | select(has("photos")) | "\($timestamp);photo;\($msg_dir);\($root)/\(.photos[].uri);\(.timestamp_ms | tostring | .[:-3]);\($people)"' "$jsonfile" >> "$dest_file"
+        jq -r --arg timestamp "$timestamp" --arg msg_dir "$msg_dir" --arg root "$root_dir" --arg people "$people" '.messages[] | select(has("videos")) | "\($timestamp);video;\($msg_dir);\($root)/\(.videos[].uri);\(.timestamp_ms | tostring | .[:-3]);\($people)"' "$jsonfile" >> "$dest_file"
+        jq -r --arg timestamp "$timestamp" --arg msg_dir "$msg_dir" --arg root "$root_dir" --arg people "$people" '.messages[] | select(has("audio_files")) | "\($timestamp);audio;\($msg_dir);\($root)/\(.audio_files[].uri);\(.timestamp_ms | tostring | .[:-3]);\($people)"' "$jsonfile" >> "$dest_file"
+    fi
+done
+
+sed -i 's/\.aac/\.mp4/g' "$dest_file"
